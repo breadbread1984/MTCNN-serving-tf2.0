@@ -181,7 +181,7 @@ class Detector(object):
             ws = int(w * scale);
             resized_img = tf.image.resize(inputs, (hs, ws));
             # send request
-            requests_data = json.dump({"signature_name": "serving_default", "instance": [{"input_1": np.squeeze(resized_img.numpy()).tolist()}]});
+            requests_data = json.dumps({"signature_name": "serving_default", "instance": [{"input_4": np.squeeze(resized_img.numpy()).tolist()}]});
             json_response = requests.post("http://" + self.host + ":" + self.ports["pnet"] + "/v1/models/pnet:predict", data = requests_data, headers = self.headers);
             output_blobs = (
                 np.array(json.loads(json_response.text)["predictions"][0]["conv4-1"]),
@@ -205,7 +205,7 @@ class Detector(object):
         boxes = tf.stack([rectangles[...,1], rectangles[...,0], rectangles[...,3], rectangles[...,2]], axis = -1) / tf.constant([h,w,h,w], dtype = tf.float32);
         predict_24_batch = tf.image.crop_and_resize(inputs, boxes, tf.zeros((rectangles.shape[0],), dtype = tf.int32),(24,24));
         # send request
-        requests_data = json.dump({"signature_name": "serving_default", "instance": [{"input_1": np.squeeze(predict_24_batch.numpy()).tolist()}]});
+        requests_data = json.dumps({"signature_name": "serving_default", "instance": [{"input_3": np.squeeze(predict_24_batch.numpy()).tolist()}]});
         json_response = requests.post("http://" + self.host + ":" + self.ports["rnet"] + "/v1/models/rnet:predict", data = requests_data, headers = self.headers);
         outs = (
             np.array(json.loads(json_response.text)["predictions"][0]["conv5-1"]),
@@ -221,7 +221,7 @@ class Detector(object):
         boxes = tf.stack([rectangles[...,1], rectangles[...,0], rectangles[...,3], rectangles[...,2]], axis = -1) / tf.constant([h,w,h,w], dtype = tf.float32);
         predict_batch = tf.image.crop_and_resize(inputs, boxes, tf.zeros((rectangles.shape[0],), dtype = tf.int32), (48,48));
         # send request
-        requests_data = json.dump({"signature_name": "serving_default", "instance": [{"input_1": np.squeeze(predict_batch.numpy()).tolist()}]});
+        requests_data = json.dumps({"signature_name": "serving_default", "instance": [{"input_2": np.squeeze(predict_batch.numpy()).tolist()}]});
         json_response = requests.post("http://" + self.host + ":" + self.ports["onet"] + "/v1/models/onet:predict", data = requests_data, headers = self.headers);
         outs = (
             np.array(json.loads(json_response.text)["predictions"][0]["conv6-3"]),
