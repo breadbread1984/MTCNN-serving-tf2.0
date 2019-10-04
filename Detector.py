@@ -222,10 +222,14 @@ if __name__ == "__main__":
         print('invalid image!');
         exit(0);
     rectangles = detector.detect(img);
-    print(rectangles.shape)
     for rectangle in rectangles:
         upper_left = tuple(rectangle[0:2]);
         down_right = tuple(rectangle[2:4]);
+        conf = rectangle[4];
+        landmarks = tf.stack([rectangle[5:10], rectangle[10:15]], axis = -1);
+        landmarks = landmarks.numpy().astype('int32');
         cv2.rectangle(img, upper_left, down_right, (0,0,255), 3);
+        for landmark in landmarks:
+            cv2.circle(img, tuple(landmark), 2, (255,0,0), 2);
     cv2.imshow('detection', img);
     cv2.waitKey();
