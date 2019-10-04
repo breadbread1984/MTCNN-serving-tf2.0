@@ -41,7 +41,7 @@ class Detector(object):
         
         wh = rectangles[..., 2:4] - rectangles[..., 0:2];
         l = tf.math.reduce_max(wh, axis = -1); # l.shape = (num over thres,)
-        center = rectangles[:, 0:2] + wh * 0.5;
+        center = rectangles[..., 0:2] + wh * 0.5;
         upperleft = center - tf.stack([l,l], axis = -1) * 0.5;
         downright = upperleft + tf.stack([l,l], axis = -1);
         rectangles = tf.concat([upperleft, downright, rectangles[..., 4:]], axis = -1);
@@ -146,7 +146,7 @@ class Detector(object):
         boundingbox = tf.boolean_mask(rectangles[..., 0:4], mask); # boundingbox.shape = (target num, 4)
         wh = boundingbox[...,2:4] - boundingbox[...,0:2]; # wh.shape = (target num, 2)
         offset = tf.boolean_mask(roi, mask); # offset.shape = (target num, 4)
-        landmarks = tf.boolean_mask(landmarks, mask); # landmarks.shape = (target num, 10)
+        landmarks = tf.boolean_mask(pts, mask); # landmarks.shape = (target num, 10)
         score = tf.expand_dims(tf.boolean_mask(cls_prob, mask), axis = -1); # score.shape = (target num, 1)
         boundingbox = boundingbox + offset * tf.tile(wh, (1,2));
         landmarks = landmarks * tf.concat([tf.tile(wh[...,0:1], (1,5)), tf.tile(wh[...,1:2], (1,5))], axis = -1) + \
@@ -168,7 +168,7 @@ class Detector(object):
         
     def detect(self, img, threshold = [0.6, 0.6, 0.7]):
         
-        data = (img - 127.5) / 127.5;
+        data = (cv2.cvtColor(img, cv2.COLOR_BGR2RGB) - 127.5) / 127.5;
         h,w,c = data.shape;
         inputs = tf.expand_dims(data, axis = 0);
         scales = self.calculateScales(data);
@@ -193,7 +193,7 @@ class Detector(object):
         if rectangles.shape[0] == 0: return rectangles;
     
         # 2) crop and refine
-        boxes = tf.stack([rectangles[...,1], rectangles[...,0], rectangles[...,3], rectangles[...,2]], axis = -1);
+        boxes = tf.stack([rectangles[...,1], rectangles[...,0], rectangles[...,3], rectangles[...,2]], axis = -1) / tf.constant([h,w,h,w], dtype = tf.float32);
         predict_24_batch = tf.image.crop_and_resize(inputs, boxes, tf.zeros((rectangles.shape[0],), dtype = tf.int32),(24,24));
         outs = self.rnet(predict_24_batch);
         cls_prob = outs[0][...,1]; # cls_prob = (target num,)
@@ -203,7 +203,7 @@ class Detector(object):
         if rectangles.shape[0] == 0: return rectangles;
 
         # 3) crop and refine and output landmark
-        boxes = tf.stack([rectangles[...,1], rectangles[...,0], rectangles[...,3], rectangles[...,2]], axis = -1);
+        boxes = tf.stack([rectangles[...,1], rectangles[...,0], rectangles[...,3], rectangles[...,2]], axis = -1) / tf.constant([h,w,h,w], dtype = tf.float32);
         predict_batch = tf.image.crop_and_resize(inputs, boxes, tf.zeros((rectangles.shape[0],), dtype = tf.int32), (48,48));
         outs = self.onet(predict_batch);
         cls_prob = outs[0][...,1];
