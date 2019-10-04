@@ -37,7 +37,7 @@ class Detector(object):
             factor_count += 1;
         return scales;
     
-    def rect2square(rectangles):
+    def rect2square(self, rectangles):
         
         wh = rectangles[..., 2:4] - rectangles[..., 0:2];
         l = tf.math.reduce_max(wh, axis = -1); # l.shape = (num over thres,)
@@ -67,7 +67,8 @@ class Detector(object):
             max_upper_left = tf.math.maximum(cur_upper_left, following_upper_left);
             min_down_right = tf.math.minimum(cur_down_right, following_down_right);
             intersect_wh = min_down_right - max_upper_left;
-            intersect_area = tf.where(tf.math.greater(intersect_wh, 0), intersect_wh, tf.zeros_like(intersect_wh));
+            intersect_wh = tf.where(tf.math.greater(intersect_wh, 0), intersect_wh, tf.zeros_like(intersect_wh));
+            intersect_area = intersect_wh[...,0] * intersect_wh[...,1];
             if type == 'iom':
                 overlap = intersect_area / tf.math.minimum(cur_area, following_area);
             else:
@@ -89,7 +90,7 @@ class Detector(object):
         mask = tf.where(tf.math.greater(cls_prob, threshold), tf.ones_like(cls_prob), tf.zeros_like(cls_prob)); # mask.shape = (h,w)
         mask = tf.cast(mask, dtype = tf.bool);
         pos = tf.where(tf.math.greater(cls_prob, threshold)); # bounding.shape = (num over thres, 2)
-        pos = tf.reverse(pos, axis = [1]); # in (x,y) order
+        pos = tf.cast(tf.reverse(pos, axis = [1]), dtype = tf.float32); # in (x,y) order
         # boundingbox.shape = (num over thres, 4)
         boundingbox = tf.math.round((stride * tf.tile(pos, (1,2)) + tf.constant([0,0,11,11], dtype = tf.float32)) * scale);
         # offset.shape = (num over thres, 4)
@@ -98,7 +99,13 @@ class Detector(object):
         boundingbox = boundingbox + offset * self.CELLSIZE * scale;
         rectangles = tf.concat([boundingbox, score], axis = 1);
         rectangles = self.rect2square(rectangles);
-        rectangles = tf.clip_by_value(rectangles, [0,0,0,0], [width - 1, height - 1, width - 1, height - 1]);
+        rectangles = tf.concat(
+            [
+                tf.clip_by_value(rectangles[...,0:4], [0,0,0,0], [width - 1, height - 1, width - 1, height - 1]),
+                rectangles[...,4:]
+            ],
+            axis = -1
+        );
         wh = rectangles[...,2:4] - rectangles[...,0:2];
         # mask.shape = (num over thres, 2)
         mask = tf.where(tf.greater(wh,0), tf.ones_like(wh), tf.zeros_like(wh));
@@ -111,7 +118,7 @@ class Detector(object):
     
         mask = tf.where(tf.math.greater(cls_prob, threshold), tf.ones_like(cls_prob), tf.zeros_like(cls_prob)); # mask.shape = (target num,)
         mask = tf.cast(mask, dtype = tf.bool);
-        boundingbox = tf.boolean_mask(rectangles, mask); # boundingbox.shape = (target num, 4)
+        boundingbox = tf.boolean_mask(rectangles[..., 0:4], mask); # boundingbox.shape = (target num, 4)
         wh = boundingbox[...,2:4] - boundingbox[...,0:2]; # wh.shape = (target num, 2)
         offset = tf.boolean_mask(roi, mask); # offset.shape = (target num, 4)
         score = tf.expand_dims(tf.boolean_mask(cls_prob, mask), axis = -1); # score.shape = (target num, 1);
@@ -136,7 +143,7 @@ class Detector(object):
 
         mask = tf.where(tf.math.greater(cls_prob, threshold), tf.ones_like(cls_prob), tf.zeros_like(cls_prob)); # mask.shape = (target num,)
         mask = tf.cast(mask, dtype = tf.bool);
-        boundingbox = tf.boolean_mask(rectangles, mask); # boundingbox.shape = (target num, 4)
+        boundingbox = tf.boolean_mask(rectangles[..., 0:4], mask); # boundingbox.shape = (target num, 4)
         wh = boundingbox[...,2:4] - boundingbox[...,0:2]; # wh.shape = (target num, 2)
         offset = tf.boolean_mask(roi, mask); # offset.shape = (target num, 4)
         landmarks = tf.boolean_mask(landmarks, mask); # landmarks.shape = (target num, 10)
@@ -172,7 +179,7 @@ class Detector(object):
             ws = int(w * scale);
             resized_img = tf.image.resize(inputs, (hs, ws));
             outs.append(self.pnet(resized_img));
-        rectangles = tf.constant((0,5), dtype = tf.float32);
+        rectangles = tf.zeros((0,5), dtype = tf.float32);
         for i in range(len(scales)):
             # process image on i th level of image pyramid
             cls_prob = outs[i][0][0,...,1]; # cls_prob.shape = (h,w)
@@ -215,3 +222,4 @@ if __name__ == "__main__":
         print('invalid image!');
         exit(0);
     rectangles = detector.detect(img);
+    
