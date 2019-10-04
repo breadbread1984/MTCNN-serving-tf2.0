@@ -148,9 +148,9 @@ class Detector(object):
         offset = tf.boolean_mask(roi, mask); # offset.shape = (target num, 4)
         landmarks = tf.boolean_mask(pts, mask); # landmarks.shape = (target num, 10)
         score = tf.expand_dims(tf.boolean_mask(cls_prob, mask), axis = -1); # score.shape = (target num, 1)
-        boundingbox = boundingbox + offset * tf.tile(wh, (1,2));
         landmarks = landmarks * tf.concat([tf.tile(wh[...,0:1], (1,5)), tf.tile(wh[...,1:2], (1,5))], axis = -1) + \
                     tf.concat([tf.tile(boundingbox[...,0:1], (1,5)), tf.tile(boundingbox[...,1:2], (1,5))], axis = -1);
+        boundingbox = boundingbox + offset * tf.tile(wh, (1,2));
         rectangles = tf.concat([boundingbox, score, landmarks], axis = -1);
         rectangles = tf.concat(
             [
@@ -197,8 +197,8 @@ class Detector(object):
         predict_24_batch = tf.image.crop_and_resize(inputs, boxes, tf.zeros((rectangles.shape[0],), dtype = tf.int32),(24,24));
         outs = self.rnet(predict_24_batch);
         cls_prob = outs[0][...,1]; # cls_prob = (target num,)
-        roi_prob = outs[1]; # roi_prob.shape = (target num, 4)
-        rectangles = self.filter_face_24net(cls_prob, roi_prob, rectangles, w, h, threshold[1]);
+        offset = outs[1]; # offset.shape = (target num, 4)
+        rectangles = self.filter_face_24net(cls_prob, offset, rectangles, w, h, threshold[1]);
 
         if rectangles.shape[0] == 0: return rectangles;
 
@@ -207,9 +207,9 @@ class Detector(object):
         predict_batch = tf.image.crop_and_resize(inputs, boxes, tf.zeros((rectangles.shape[0],), dtype = tf.int32), (48,48));
         outs = self.onet(predict_batch);
         cls_prob = outs[0][...,1];
-        roi_prob = outs[1];
-        pts_prob = outs[2];
-        rectangles = self.filter_face_48net(cls_prob, roi_prob, pts_prob, rectangles, w, h, threshold[2]);
+        offset = outs[1];
+        pts = outs[2];
+        rectangles = self.filter_face_48net(cls_prob, offset, pts, rectangles, w, h, threshold[2]);
 
         return rectangles;
     
