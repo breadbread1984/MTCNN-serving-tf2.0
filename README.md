@@ -25,4 +25,17 @@ Then you can find mtcnn directory presenting at current directory.
 
 ## start serving
 
+After saved model was successfully generated under current directory, start serving the model with following command
+
+```bash
+bash start_serving.sh
+```
+
+## predict with model server
+
+detect faces with model server by executing
+
+```bash
+python3 Detector.py
+```
 
