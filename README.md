@@ -39,3 +39,10 @@ detect faces with model server by executing
 python3 Detector.py
 ```
 
+## predict offline
+
+detect faces with local tensorflow by executing
+
+```bash
+python3 OfflineDetector.py
+```
