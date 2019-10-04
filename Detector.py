@@ -181,11 +181,12 @@ class Detector(object):
             ws = int(w * scale);
             resized_img = tf.image.resize(inputs, (hs, ws));
             # send request
-            requests_data = json.dumps({"signature_name": "serving_default", "instance": [{"input_4": np.squeeze(resized_img.numpy()).tolist()}]});
+            requests_data = json.dumps({"signature_name": "serving_default", "instances": [{"input_4": np.squeeze(resized_img.numpy()).tolist()}]});
             json_response = requests.post("http://" + self.host + ":" + self.ports["pnet"] + "/v1/models/pnet:predict", data = requests_data, headers = self.headers);
+            batch_response = json.loads(json_response.text)["predictions"];
             output_blobs = (
-                np.array(json.loads(json_response.text)["predictions"][0]["conv4-1"]),
-                np.array(json.loads(json_response.text)["predictions"][0]["conv4-2"])
+                tf.constant([response["conv4-1"] for response in batch_response], dtype = tf.float32),
+                tf.constant([response["conv4-2"] for response in batch_response], dtype = tf.float32)
             );
             outs.append(output_blobs);
         rectangles = tf.zeros((0,5), dtype = tf.float32);
@@ -205,11 +206,12 @@ class Detector(object):
         boxes = tf.stack([rectangles[...,1], rectangles[...,0], rectangles[...,3], rectangles[...,2]], axis = -1) / tf.constant([h,w,h,w], dtype = tf.float32);
         predict_24_batch = tf.image.crop_and_resize(inputs, boxes, tf.zeros((rectangles.shape[0],), dtype = tf.int32),(24,24));
         # send request
-        requests_data = json.dumps({"signature_name": "serving_default", "instance": [{"input_3": np.squeeze(predict_24_batch.numpy()).tolist()}]});
+        requests_data = json.dumps({"signature_name": "serving_default", "instances": [{"input_3": np.squeeze(predict_24_batch.numpy()).tolist()}]});
         json_response = requests.post("http://" + self.host + ":" + self.ports["rnet"] + "/v1/models/rnet:predict", data = requests_data, headers = self.headers);
+        batch_response = json.loads(json_response.text)["predictions"];
         outs = (
-            np.array(json.loads(json_response.text)["predictions"][0]["conv5-1"]),
-            np.array(json.loads(json_response.text)["predictions"][0]["conv5-2"])
+            tf.constant([response["conv5-1"] for response in batch_response], dtype = tf.float32),
+            tf.constant([response["conv5-2"] for response in batch_response], dtype = tf.float32)
         );
         cls_prob = outs[0][...,1]; # cls_prob = (target num,)
         offset = outs[1]; # offset.shape = (target num, 4)
@@ -221,12 +223,13 @@ class Detector(object):
         boxes = tf.stack([rectangles[...,1], rectangles[...,0], rectangles[...,3], rectangles[...,2]], axis = -1) / tf.constant([h,w,h,w], dtype = tf.float32);
         predict_batch = tf.image.crop_and_resize(inputs, boxes, tf.zeros((rectangles.shape[0],), dtype = tf.int32), (48,48));
         # send request
-        requests_data = json.dumps({"signature_name": "serving_default", "instance": [{"input_2": np.squeeze(predict_batch.numpy()).tolist()}]});
+        requests_data = json.dumps({"signature_name": "serving_default", "instances": [{"input_2": np.squeeze(predict_batch.numpy()).tolist()}]});
         json_response = requests.post("http://" + self.host + ":" + self.ports["onet"] + "/v1/models/onet:predict", data = requests_data, headers = self.headers);
+        batch_response = json.loads(json_response.text)["predictions"];
         outs = (
-            np.array(json.loads(json_response.text)["predictions"][0]["conv6-3"]),
-            np.array(json.loads(json_response.text)["predictions"][0]["conv6-1"]),
-            np.array(json.loads(json_response.text)["predictions"][0]["conv6-2"])
+            tf.constant([response["conv6-3"] for response in batch_response], dtype = tf.float32),
+            tf.constant([response["conv6-1"] for response in batch_response], dtype = tf.float32),
+            tf.constant([response["conv6-2"] for response in batch_response], dtype = tf.float32)
         );
         cls_prob = outs[0][...,1];
         offset = outs[1];
