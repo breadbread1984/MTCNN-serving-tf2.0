@@ -12,6 +12,15 @@ def main():
         tf.saved_model.save(pnet, './mtcnn/pnet/1');
         tf.saved_model.save(rnet, './mtcnn/rnet/1');
         tf.saved_model.save(onet, './mtcnn/onet/1');
+        loaded_pnet = tf.saved_model.load('./mtcnn/pnet/1');
+        loaded_rnet = tf.saved_model.load('./mtcnn/rnet/1');
+        loaded_onet = tf.saved_model.load('./mtcnn/onet/1');
+        infer_pnet = loaded_pnet.signatures['serving_default'];
+        infer_rnet = loaded_rnet.signatures['serving_default'];
+        infer_onet = loaded_onet.signatures['serving_default'];
+        print('pnet\'s output tensor name is ', infer_pnet.structured_outputs);
+        print('rnet\'s output tensor name is ', infer_rnet.structured_outputs);
+        print('onet\'s output tensor name is ', infer_onet.structured_outputs);
 
 if __name__ == "__main__":
 
