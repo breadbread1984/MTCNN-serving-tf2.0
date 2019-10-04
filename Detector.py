@@ -89,9 +89,9 @@ class Detector(object):
         mask = tf.where(tf.math.greater(cls_prob, threshold), tf.ones_like(cls_prob), tf.zeros_like(cls_prob)); # mask.shape = (h,w)
         mask = tf.cast(mask, dtype = tf.bool);
         pos = tf.where(tf.math.greater(cls_prob, threshold)); # bounding.shape = (num over thres, 2)
-        pos = tf.reverse(pos, axis = 1); # in (x,y) order
+        pos = tf.reverse(pos, axis = [1]); # in (x,y) order
         # boundingbox.shape = (num over thres, 4)
-        boundingbox = tf.math.round((stride * tf.concat([pos,pos], axis = -1) + tf.constant([0,0,11,11], dtype = tf.float32)) * scale);
+        boundingbox = tf.math.round((stride * tf.tile(pos, (1,2)) + tf.constant([0,0,11,11], dtype = tf.float32)) * scale);
         # offset.shape = (num over thres, 4)
         offset = tf.boolean_mask(roi, mask);
         score = tf.expand_dims(tf.boolean_mask(cls_prob, mask), axis = -1); # score.shape = (num over thres,1)
